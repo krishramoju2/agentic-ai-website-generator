@@ -9,7 +9,7 @@ This project scaffolds a platform that:
 
 ## Quick start
 ```bash
-npm install express fs-extra openai
+npm install express fs-extra openai cors
 export OPENAI_API_KEY="sk-..."
 export VERCEL_TOKEN="vercel_..."
 node server/index.js
