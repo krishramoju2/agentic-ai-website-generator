@@ -6,11 +6,11 @@ This project scaffolds a platform that:
 - Generates a React + Tailwind frontend
 - Optionally adds an Express backend
 - Runs QA tests
-- Deploys to providers like Vercel/Netlify
+- Deploys to providers like Vercel
 
 ## Quick start
 ```bash
 npm install express fs-extra openai cors
-export OPENAI_API_KEY="sk-..."
+export HF_API_TOKEN=""
 export VERCEL_TOKEN="vercel_..."
 node server/index.js
