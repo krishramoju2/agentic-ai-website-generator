@@ -1,39 +1,32 @@
-// (Orchestrator that synchronizes agents; single-threaded, each step waits for the previous)
-// ===============================
-const path = require("path");
-const { extractRequirements } = require("./agents/requirementAgent");
-const { generateWireframe } = require("./agents/wireframeAgent");
-const { generateReactComponents } = require("./agents/codegenAgent");
-const { generateBackend } = require("./agents/backendAgent");
-const { generateTests } = require("./agents/qaAgent");
-const { deploySite } = require("./agents/deployAgent");
+// pipeline.js
+const requirementAgent = require("./agents/requirementAgent");
+const wireframeAgent = require("./agents/wireframeAgent");
+const codegenAgent = require("./agents/codegenAgent");
+const backendAgent = require("./agents/backendAgent");
+const qaAgent = require("./agents/qaAgent");
+const deployAgent = require("./agents/deployAgent");
 
-/**
- * runPipeline(userInput)
- * userInput: {
- *   siteName,
- *   requirements,
- *   wireframeStyle,
- *   designTheme,
- *   deploymentPlatform,
- *   includeBackend,
- *   database,
- *   authRequired
- * }
- * Returns an object with job metadata (jobDir, liveUrl if deploy completed synchronously).
- */
-async function runPipeline(userInput) {
-  const jobId = `job-${Date.now()}`;
-  const jobDir = path.resolve(process.cwd(), "generated", jobId);
-  fs.mkdirSync(jobDir, { recursive: true });
+async function runPipeline(userRequirements) {
+  console.log("📌 Step 1: Collecting requirements...");
+  const requirements = await requirementAgent(userRequirements);
 
-  // 1) Requirements extraction
-  const reqs = await extractRequirements(userInput.requirements);
+  console.log("📌 Step 2: Generating wireframe...");
+  const wireframe = await wireframeAgent(requirements);
 
-  // 2) Wireframe generation (user style + extracted reqs)
-  const wireframe = generateWireframe(reqs, userInput.wireframeStyle);
+  console.log("📌 Step 3: Generating frontend code with GPT...");
+  const frontendCode = await codegenAgent({ requirements, wireframe });
 
-  // 3) Generate frontend code (React + Tailwind skeleton) into jobDir/client
+  console.log("📌 Step 4: Generating backend code...");
+  const backendCode = await backendAgent();
+
+  console.log("📌 Step 5: QA check...");
+  await qaAgent({ frontendCode });
+
+  console.log("📌 Step 6: Deploying to Vercel...");
+  await deployAgent({ frontendCode, backendCode });
+}
+
+module.exports = { runPipeline };
   const siteDir = await generateReactComponents({
     jobDir,
     wireframe,
