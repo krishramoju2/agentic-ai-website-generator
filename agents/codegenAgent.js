@@ -1,36 +1,47 @@
 // agents/codegenAgent.js
 require("dotenv").config();
-const fs = require("fs");
-const OpenAI = require("openai");
+const { HfInference } = require("@huggingface/inference");
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const hf = new HfInference(process.env.HF_API_TOKEN);
 
-async function codegenAgent({ requirements, wireframe }) {
+/**
+ * Generate frontend content using Hugging Face model
+ */
+async function codegenAgent({ wireframe, theme, colors, effects, content }) {
+  // Prepare prompt for HF
   const prompt = `
-  Generate a full React + Tailwind page based on:
-  - Site Type: ${requirements.siteType}
-  - Theme: ${requirements.theme}
-  - Sections: ${requirements.sections.join(", ")}
-  - Tone: ${requirements.tone}
-  - Animations: ${requirements.animations ? "Yes" : "No"}
+Generate website HTML/React content based on the following:
+- Sections: ${wireframe.map(s => s.type).join(", ")}
+- Theme: ${theme.background}, colors: primary=${colors.primary}, secondary=${colors.secondary}
+- Effects: ${effects.container}
+- Content: ${content}
+`;
 
-  Each section should have **realistic tailored text**, 
-  styled with colors & effects per theme.
-  Use one main React component (App).
-  `;
-
-  const response = await client.chat.completions.create({
-    model: "gpt-4.1",
-    messages: [{ role: "user", content: prompt }],
+  // Call Hugging Face text-generation model
+  const output = await hf.textGeneration({
+    model: "gpt2", // or any HF hosted model
+    inputs: prompt,
+    parameters: {
+      max_new_tokens: 800,
+      temperature: 0.7
+    }
   });
 
-  const frontendCode = response.choices[0].message.content;
+  // Take generated text
+  const generated = output?.generated_text || "// fallback content";
 
-  fs.writeFileSync("./build/App.jsx", frontendCode);
-
-  return frontendCode;
+  // Wrap in App.jsx
+  const appCode = `
+import React from "react";
+export default function App() {
+  return (
+    <div className="${theme.background}">
+      ${generated}
+    </div>
+  );
+}
+  `;
+  return appCode;
 }
 
 module.exports = codegenAgent;
