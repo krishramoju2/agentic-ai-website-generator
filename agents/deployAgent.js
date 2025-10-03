@@ -1,31 +1,38 @@
-// Deployment agent
-const { exec } = require("child_process");
+// agents/deployAgent.js
+require("dotenv").config();
+const fs = require("fs");
 
-function runCmd(cmd, cwd) {
-  return new Promise((resolve, reject) => {
-    exec(cmd, { cwd, maxBuffer: 1024 * 1024 * 10 }, (err, stdout, stderr) => {
-      if (err) return reject({ err, stdout, stderr });
-      resolve({ stdout, stderr });
-    });
+async function deployAgent({ frontendCode }) {
+  fs.writeFileSync("./build/App.jsx", frontendCode);
+
+  console.log("🚀 Deploying to Vercel...");
+
+  const response = await fetch("https://api.vercel.com/v13/deployments", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: "auto-generated-site",
+      files: [
+        {
+          file: "App.jsx",
+          data: frontendCode,
+        },
+      ],
+    }),
   });
+
+  const result = await response.json();
+
+  if (result.url) {
+    console.log(`✅ Deployed: https://${result.url}`);
+  } else {
+    console.error("❌ Deployment failed:", result);
+  }
 }
 
-async function deploySite({ siteDir, platform }) {
-  await runCmd("npm ci", siteDir);
-  await runCmd("npm run build", siteDir);
+module.exports = deployAgent;
 
-  if (platform === "Vercel") {
-    const { stdout } = await runCmd(`npx vercel --prod --token=${process.env.VERCEL_TOKEN} --confirm`, siteDir);
-    const urlMatch = stdout.match(/https?:\/\/[^\s]+/);
-    return { success: true, platform, liveUrl: urlMatch ? urlMatch[0] : null };
-  }
-  if (platform === "Netlify") {
-    const { stdout } = await runCmd("npx netlify deploy --prod --dir=dist", siteDir);
-    const urlMatch = stdout.match(/https?:\/\/[^\s]+/);
-    return { success: true, platform, liveUrl: urlMatch ? urlMatch[0] : null };
-  }
-  return { success: false, error: "Unsupported platform" };
-}
-
-module.exports = { deploySite };
 
